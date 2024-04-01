@@ -35,7 +35,7 @@ kidsroom_chair:
     scenes:
         'one': scene.kinderkamer_fel
         'one_off': scene.kinderkamer_uit
-        'zero': scene.atuin_disco
+        'zero': scene.atuin_nightlight
         'zero_off': scene.atuin_uit
     buttons:
         - tradfri_switch_kinderkamer_stoel
