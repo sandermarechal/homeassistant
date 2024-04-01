@@ -1,0 +1,10 @@
+.env
+/appdaemon/*
+!/appdaemon/apps
+/appdaemon/apps/__pycache__
+/deconz
+/frigate
+/homeassistant
+/mosquitto
+/traefik
+/zigbee2mqtt

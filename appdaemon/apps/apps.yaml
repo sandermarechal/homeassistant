@@ -1,0 +1,65 @@
+bathroom:
+    module: room
+    class: Room
+    scenes:
+        'off': scene.badkamer_uit
+        'one': scene.badkamer_fel
+        'zero': scene.badkamer_nacht
+    buttons:
+        - tradfri_switch_badkamer
+
+bedroom:
+    module: room
+    class: Room
+    scenes:
+        'off': scene.slaapkamer_uit
+        'one': scene.slaapkamer_fel
+        'zero': scene.slaapkamer_nacht
+    buttons:
+        - tradfri_switch_slaapkamer
+        - tradfri_switch_slaapkamer_bed
+
+kidsroom:
+    module: room
+    class: Room
+    scenes:
+        'off': scene.kinderkamer_uit
+        'one': scene.kinderkamer_fel
+        'zero': scene.kinderkamer_nacht
+    buttons:
+        - tradfri_switch_kinderkamer
+
+kidsroom_chair:
+    module: duo
+    class: Duo
+    scenes:
+        'one': scene.kinderkamer_fel
+        'one_off': scene.kinderkamer_uit
+        'zero': scene.atuin_disco
+        'zero_off': scene.atuin_uit
+    buttons:
+        - tradfri_switch_kinderkamer_stoel
+
+atuin:
+    module: room
+    class: Room
+    scenes:
+        'off': scene.atuin_uit
+        'one': scene.atuin_disco
+        'zero': scene.atuin_nightlight
+    buttons:
+        - tradfri_switch_atuin
+
+livingroom:
+    module: livingroom
+    class: LivingRoom
+
+toilet:
+    module: room
+    class: Room
+    scenes:
+        'off': scene.toilet_uit
+        'one': scene.toilet_fel
+        'zero': scene.toilet_nacht
+    buttons:
+        - tradfri_switch_toilet

@@ -1,0 +1,154 @@
+version: '3.6'
+services:
+    homeassistant:
+        image: homeassistant/home-assistant
+        network_mode: host
+        volumes:
+            - ./homeassistant:/config
+            - /etc/localtime:/etc/localtime:ro
+        restart: unless-stopped
+        depends_on:
+            - deconz
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.homeassistant.rule=Host(`home.marechal.io`)"
+            - "traefik.http.routers.homeassistant.entrypoints=websecure"
+            - "traefik.http.routers.homeassistant.tls.certresolver=myresolver"
+            #- "traefik.http.routers.homeassistant.tls.domains[0].main=home.marechal.io"
+            #- "traefik.http.routers.homeassistant.tls.domains[0].sans=mqtt.marechal.io"
+            - "traefik.http.services.homeassistant.loadbalancer.server.port=8123"
+
+    deconz:
+        image: marthoc/deconz
+        environment:
+            DECONZ_WEB_PORT: 8081
+            DECONZ_WS_PORT: 8082
+            DECONZ_VNC_MODE: 1
+            DECONZ_VNC_PORT: 5900
+            DECONZ_VNC_PASSWORD: "${VNC_PASSWORD}"
+        volumes:
+            - /etc/localtime:/etc/localtime:ro
+            - /etc/timezone:/etc/timezone:ro
+            - ./deconz:/root/.local/share/dresden-elektronik/deCONZ
+        restart: unless-stopped
+        devices:
+            - "/dev/ttyACM0:/dev/ttyACM0"
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.deconz.rule=Host(`deconz.marechal.io`)"
+            - "traefik.http.services.deconz.loadbalancer.server.port=8081"
+
+    appdaemon:
+        image: acockburn/appdaemon:latest
+        environment:
+            HA_URL: "http://home.marechal.io:8123"
+            TOKEN: "${HA_APPDAEMON_KEY}"
+            DASH_URL: "http://home.marechal.io:5050"
+        restart: unless-stopped
+        user: 1000:1000
+        volumes:
+            - ./appdaemon:/conf
+            - /etc/localtime:/etc/localtime:ro
+            - /etc/ssl/certs:/certs:ro
+        depends_on:
+            - homeassistant
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.appdaemon.rule=Host(`appdaemon.marechal.io`)"
+            - "traefik.http.services.appdaemon.loadbalancer.server.port=5050"
+
+    zigbee2mqtt:
+        image: koenkk/zigbee2mqtt
+        restart: unless-stopped
+        volumes:
+            - ./zigbee2mqtt/data:/app/data
+            - /run/udev:/run/udev:ro
+        environment:
+            - TZ=Europe/Amsterdam
+        devices:
+            - "/dev/ttyUSB0:/dev/ttyUSB0"
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.zigbee2mqtt.rule=Host(`zigbee2mqtt.marechal.io`)"
+            - "traefik.http.services.zigbee2mqtt.loadbalancer.server.port=8080"
+
+    mosquitto:
+        image: eclipse-mosquitto:2
+        volumes:
+            - ./mosquitto/config:/mosquitto/config
+            - ./mosquitto/data:/mosquitto/data
+            - ./mosquitto/log:/mosquitto/log
+        restart: unless-stopped
+        ports:
+            - "1883:1883"
+        labels:
+            - "traefik.enable=true"
+            - "traefik.tcp.services.mqtt.loadbalancer.server.port=1883"
+            - "traefik.tcp.routers.tcpr_mqtt.entrypoints=mqtt"
+            - "traefik.tcp.routers.tcpr_mqtt.rule=HostSNI(`mqtt.marechal.io`)"
+            - "traefik.tcp.routers.tcpr_mqtt.service=mqtt"
+            - "traefik.tcp.routers.tcpr_mqtt.tls.certresolver=myresolver"
+            - "traefik.tcp.services.mqtt_websocket.loadbalancer.server.port=9001"
+            - "traefik.tcp.routers.tcpr_mqtt_websocket.entrypoints=mqtt_websocket"
+            - "traefik.tcp.routers.tcpr_mqtt_websocket.rule=HostSNI(`mqtt.marechal.io`)"
+            - "traefik.tcp.routers.tcpr_mqtt_websocket.tls.certresolver=myresolver"
+            - "traefik.tcp.routers.tcpr_mqtt_websocket.service=mqtt_websocket"
+
+    frigate:
+        image: ghcr.io/blakeblackshear/frigate:stable
+        privileged: true
+        restart: unless-stopped
+        shm_size: "256mb"
+        volumes:
+            - /etc/localtime:/etc/localtime:ro
+            - ./frigate/config/config.yml:/config/config.yml
+            - ./frigate/media:/media/frigate
+            - type: tmpfs # 1GB of memory, reduces SSD/SD Card wear
+              target: /tmp/cache
+              tmpfs:
+                size: 1000000000
+        ports:
+          #- "5000:5000" # Web UI
+          - "8554:8554" # RTSP feeds
+          - "8555:8555/tcp" # WebRTC over tcp
+          - "8555:8555/udp" # WebRTC over udp
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.frigate.rule=Host(`nvr.marechal.io`)"
+            - "traefik.http.services.frigate.loadbalancer.server.port=5000"
+
+    traefik:
+        image: traefik:v2.4
+        command:
+            - "--log.level=DEBUG"
+            - "--api.insecure=true"
+            - "--providers.docker=true"
+            - "--entrypoints.web.address=:80"
+            - "--entrypoints.websecure.address=:443"
+            - "--entrypoints.mqtt.address=:8883"
+            - "--entrypoints.mqtt_websocket.address=:9001"
+            - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+            - "--certificatesresolvers.myresolver.acme.email=${LETSENCRYPT_EMAIL}"
+            - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+        restart: unless-stopped
+        ports:
+            # HTTP
+            - "80:80"
+            - "443:443"
+            # Traefik admin
+            - "8080:8080"
+            # Mosquitto
+            - "8883:8883"
+            - "9001:9001"
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock:ro"
+            - "./traefik/letsencrypt:/letsencrypt"
+        extra_hosts:
+            - host.docker.internal:192.168.1.5
+
+networks:
+    default:
+        ipam:
+            driver: default
+            config:
+                - subnet: 172.16.0.0/16
