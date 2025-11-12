@@ -8,6 +8,13 @@ bathroom:
     buttons:
         - tradfri_switch_badkamer
 
+itho:
+    module: switch-hass
+    class: SwitchHass
+    buttons:
+        - tradfri_switch_afzuiging
+    target: fan.itho_box_nrg_itho_1_fan
+
 bedroom:
     module: room
     class: Room
