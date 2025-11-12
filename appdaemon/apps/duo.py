@@ -16,6 +16,7 @@ class Duo(hassapi.Hass):
         }
 
         self.listen_event(self.on_call_service, 'call_service')
+        self.listen_event(self.on_state_changed, 'state_changed')
         self.listen_event(self.on_deconz_event, 'deconz_event')
 
     def on_call_service(self, event, data, kwargs):
@@ -38,6 +39,30 @@ class Duo(hassapi.Hass):
             if scene == self.args['scenes']['zero_off']:
                 self.current_scenes[self.args['scenes']['zero']] = False
                 self.log('Scene off: ' + self.args['scenes']['zero'])
+
+    def on_state_changed(self, event, data, kwargs):
+        button = data['entity_id']
+
+        if button.startswith('sensor.'):
+            button = button[7:]
+
+        if button.endswith('_action'):
+            button = button[:-7]
+
+        if button in self.args['buttons']:
+            self.log('{}: {}'.format(button, data['new_state']['state']))
+
+            if data['new_state']['state'] == 'on':
+                if self.current_scenes[self.args['scenes']['one']]:
+                    self.turn_on(self.args['scenes']['one_off'], transition = 0)
+                else:
+                    self.turn_on(self.args['scenes']['one'], transition = 0)
+
+            if data['new_state']['state'] == 'off':
+                if self.current_scenes[self.args['scenes']['zero']]:
+                    self.turn_on(self.args['scenes']['zero_off'], transition = 0)
+                else:
+                    self.turn_on(self.args['scenes']['zero'], transition = 0)
 
     def on_deconz_event(self, event, data, kwargs):
         button = data['id']
