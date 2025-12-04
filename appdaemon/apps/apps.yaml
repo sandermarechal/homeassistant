@@ -1,3 +1,15 @@
+alarm:
+    module: alarm
+    class: Alarm
+    alarms:
+        - sensor.pixel_9_next_alarm
+        - sensor.pixel_8_pro_next_alarm
+    light: light.licht_slaapkamer
+    end_scene: scene.slaapkamer_fel
+    time:
+        start: '06:00:00'
+        end: '08:30:00'
+
 bathroom:
     module: room
     class: Room
