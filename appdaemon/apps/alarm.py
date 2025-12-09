@@ -23,7 +23,10 @@ class Alarm(hassapi.Hass):
         if entity not in self.args['alarms']:
             return
         
-        date = self.convert_utc(data['new_state']['state'])
+        date = None
+        if data['new_state']['state'] is not 'unavailable':
+            date = self.convert_utc(data['new_state']['state'])
+
         self.next_alarms[entity] = date
         self.log('New alarm: {} on {}'.format(entity, date))
 
@@ -51,12 +54,13 @@ class Alarm(hassapi.Hass):
                 self.log('Alarm {} at {} outside waking period'.format(entity, alarm))
                 return
 
-            alarm_offset = abs((alarm - datetime.timedelta(minutes = 10) - self.get_now()).total_seconds())
+            alarm_start = alarm - datetime.timedelta(minutes = 10)
+            alarm_offset = abs((alarm_start - self.get_now()).total_seconds())
             
             if alarm_offset < 60:
                 self.log('Alarm {} will go off soon'.format(entity))
-                if not start_waking or alarm < start_waking:
-                    start_waking = alarm
+                if not start_waking or alarm_start < start_waking:
+                    start_waking = alarm_start
 
         if start_waking is not None:
             self.log('Start waking alarm: {}'.format(start_waking))
